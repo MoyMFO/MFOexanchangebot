@@ -17,8 +17,7 @@ class BitsoApiConn:
     self.parameters = parameters
 
   def auth_header(self):
-      bitso_key = "IBQdAgHOqa"
-      bitso_secret = "4b3bd96deaac38652da20e0505a44ffb"
+      
       nonce =  str(int(round(time.time() * 1000)))
       message = nonce+self.method_type+self.request_path
       if self.method_type == "POST":

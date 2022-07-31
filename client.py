@@ -1,7 +1,9 @@
 import websockets
 import json
-from model import DesitionMaker, PriceForecast, DataTracker
+from model import DecisionMaker, PriceForecast, DataTracker, SavingResults
 import sys
+from datetime import datetime
+
 
 class PricesStreaming:
 
@@ -16,11 +18,14 @@ class PricesStreaming:
             print(f">>> {conn_trades}")
             sys.stdout.flush()
             orderbooks = []
+            actions_counter = 0
             while True:
                 prices = json.loads(await ws.recv())
                 try:
                     orderbooks.append(prices['payload'])
-                    if len(orderbooks) == 200:
+                    if len(orderbooks) == 800:
+                        print('In condition')
+                        sys.stdout.flush()
                         # Instance for mid_price or wighted_mid_price
                         model_data = DataTracker(orderbooks=orderbooks)
                         
@@ -28,18 +33,42 @@ class PricesStreaming:
                         prices_for_analysis = model_data.wighted_mid_price()
 
                         # Price Forecast
-                        results = PriceForecast(prices_for_analysis=prices_for_analysis)
-
-                        # Decision making
-                        # Make a first trade
+                        forecast_results = PriceForecast(prices_for_analysis=prices_for_analysis)
+                        forecast_results = forecast_results.next_expected_value()
+                        print('After forecast results')
+                        print(forecast_results['mean'])
+                        print(forecast_results['distribution_name'])
+                        sys.stdout.flush()
                         # Instance DesisionMaker
-
-                        break
+                        
+                        trading_action = DecisionMaker(next_expected_value=forecast_results['mean'],
+                                                       prices_for_analysis=prices_for_analysis,
+                                                       book_name=self.book_name, actions_counter=actions_counter)
+                        # Trading desicion
+                        decision = trading_action.decision_maker()
+                        print(decision)
+                        
+                        # Saving Results
+                        saver = SavingResults()
+                        saver = saver.save_transaction(id_transaction=str(datetime.now()), 
+                                               expected_value=forecast_results['mean'],
+                                               last_price=prices_for_analysis[-1],
+                                               distribution=forecast_results['distribution_name'],
+                                               mxn_balance=decision['mxn_balance'],
+                                               action=decision['order_type'])
+                        # Clear Orderbooks
+                        
+                        orderbooks.clear()
+                        actions_counter += 1
+                        print(actions_counter)
+                        sys.stdout.flush()
+                        #break
+                        
                     #list_prices.append(prices['payload'][0]['r']) #prices['payload'][0]['r']
                     #DesitionMaker(list_prices).desition_model()
                     #print(f'this is l: {list_prices}')
                     #sys.stdout.flush()
                 except:
                     pass
-            return results.next_expected_value()         
+            #return forecast_results.next_expected_value()         
 

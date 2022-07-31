@@ -1,8 +1,8 @@
-from importlib.metadata import distribution
 import pandas as pd
 import numpy as np
 from fitter import Fitter
-
+import sqlite3
+from queries import WalletInformation, OrdersPlacement
 
 class DataTracker:
     
@@ -32,7 +32,7 @@ class PriceForecast:
     
     def next_expected_value(self) -> dict:
         # Instance Distribution of 200 weigthed mid prices 
-        distribution = Fitter(self.prices_for_analysis)
+        distribution = Fitter(self.prices_for_analysis, distributions=['johnsonsu', 'beta', 'pearson3'])
         # Fit distribution
         distribution.fit()
         # Get parameters of the best distribution
@@ -42,21 +42,85 @@ class PriceForecast:
 
 
 
-class DesitionMaker:
+class DecisionMaker:
 
-    def __init__(self, next_expected_value: float) -> None:
+    def __init__(self, next_expected_value: float,
+                 prices_for_analysis: np.array,
+                 book_name: str, actions_counter: int) -> None:
         self.next_expected_value = next_expected_value
-        
-    def destion_maker(self):
-        array_to_analize = np.array_split(self.prices_list,3)
-        array_to_analize = [np.mean([array_to_analize[i]]) for i in range(len(array_to_analize))]
+        self.prices_for_analysis = prices_for_analysis
+        self.book_name = book_name
+        self.actions_counter = actions_counter
 
-        if (array_to_analize[2] > array_to_analize[1]) and (array_to_analize[1] > array_to_analize[0]):
-            self.prices_list.clear()
-            return print("buy")
-        elif (array_to_analize[2] < array_to_analize[1]) and (array_to_analize[1] < array_to_analize[0]):
-            self.prices_list.clear()
-            return print("sell")
+    def decision_maker(self):
+        
+        # Expected Value
+        next_expected_value = np.round(self.next_expected_value, 2)
+        last_price = np.round(self.prices_for_analysis[-1], 2)
+
+        # Database Comprobation
+        if self.actions_counter == 0:
+            last_decision = 'Hold'
         else:
-            self.prices_list.clear()
-            return print("hold")
+            last_decision = SavingResults().last_decision()
+
+        # Wallet Information
+        wallet_information = WalletInformation(currency=self.book_name[0:3]) 
+        existing_order = wallet_information.existing_order()
+        mxn_balance = wallet_information.available_money()
+        crypto_balance = wallet_information.existing_crypto()
+        print(f'this is the last price {last_price}')
+        # Order placement Instance
+        order = OrdersPlacement(book=self.book_name, balance_mxn=mxn_balance, balance_crypto_currency=crypto_balance, last_price=last_price)
+
+        if (next_expected_value > last_price) and (last_decision != 'Buy') and (existing_order == False) and (mxn_balance != False):
+            order.buy()
+            return {'order_type': 'Buy', 'mxn_balance': mxn_balance} 
+        elif next_expected_value == last_price:
+            return {'order_type': 'Hold', 'mxn_balance': mxn_balance}
+        elif (next_expected_value < last_price) and (last_decision != 'Sell') and (existing_order == False) and (crypto_balance != False):
+            order.sell()
+            return {'order_type': 'Sell', 'mxn_balance': mxn_balance}
+        else:
+            return {'order_type': 'Hold', 'mxn_balance': mxn_balance}
+
+class SavingResults:
+
+    def __init__(self) -> None:
+        pass
+
+    @staticmethod
+    def save_transaction(id_transaction: str, expected_value: float,
+                         last_price: float, distribution: str, mxn_balance:float,
+                         action: str) -> None:
+        conn = sqlite3.connect('transactions.db')
+        cur = conn.cursor()
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS model_performance 
+        (
+        id_transaction TEXT PRIMARY KEY, 
+        expected_value REAL,
+        last_price REAL,
+        distribution TEXT,
+        mxn_balance REAL,
+        action TEXT
+        )
+        """)
+
+        cur.execute("INSERT INTO model_performance VALUES (?, ?, ?, ?, ?, ?)",
+        (id_transaction, expected_value, last_price, distribution, mxn_balance, action))
+        conn.commit()
+        conn.close()
+        return None
+    
+    @staticmethod
+    def last_decision() -> str:
+        conn = sqlite3.connect('transactions.db')
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM model_performance")
+        transactions = cur.fetchall()
+        last_decision = transactions[-1][-1]
+        conn.close()
+
+        return last_decision

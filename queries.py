@@ -73,15 +73,32 @@ class OrdersPlacement:
       self.balance_crypto_currency = balance_crypto_currency
       self.last_price = last_price
 
+  def __quantity_mxn_balance_to_trade(self):
+    return np.round(((mxn_balance*.70)/self.last_price), 7)
+
+  def __quantity_crypto_balance_to_trade(self):
+    return np.round((self.balance_crypto_currency * .70), 7)
+
   def buy(self):
-      parameters = {"book": self.book, "side":"buy", "type":"limit", "major": 0.00005154, "price": self.last_price}
+      parameters = {"book": self.book, "side":"buy", "type":"limit", "major": self.__quantity_mxn_balance_to_trade(), "price": self.last_price}
       bitsoconn = BitsoApiConn("POST", "/v3/orders/", parameters=parameters)
       response = requests.post("https://api.bitso.com" + bitsoconn.request_path, json = parameters, headers={"Authorization": bitsoconn.auth_header()})
       return print(response.content)
   
   def sell(self):
-      parameters = {"book": self.book, "side":"sell", "type":"limit", "major": self.balance_crypto_currency, "price": self.last_price}
+      parameters = {"book": self.book, "side":"sell", "type":"limit", "major": self.__quantity_crypto_balance_to_trade(), "price": self.last_price}
       bitsoconn = BitsoApiConn("POST", "/v3/orders/", parameters=parameters)
       response =  requests.post("https://api.bitso.com" + bitsoconn.request_path, json = parameters, headers={"Authorization": bitsoconn.auth_header()})
       return print(response.content)
 
+#wallet_information = WalletInformation(currency='btc') 
+#existing_order = wallet_information.existing_order()
+#mxn_balance = wallet_information.available_money()
+#crypto_balance = wallet_information.existing_crypto()
+
+#print(existing_order)
+#print(mxn_balance)
+#print(crypto_balance)
+
+#order = OrdersPlacement(book='btc_mxn', balance_mxn=mxn_balance, balance_crypto_currency=crypto_balance, last_price=467400)
+#order.buy()

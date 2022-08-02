@@ -74,7 +74,7 @@ class OrdersPlacement:
       self.last_price = last_price
 
   def __quantity_mxn_balance_to_trade(self):
-    return np.round(((mxn_balance*.70)/self.last_price), 7)
+    return np.round(((self.mxn_balance*.70)/self.last_price), 7)
 
   def __quantity_crypto_balance_to_trade(self):
     return np.round((self.balance_crypto_currency * .70), 7)

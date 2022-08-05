@@ -23,14 +23,14 @@ class PricesStreaming:
                 prices = json.loads(await ws.recv())
                 try:
                     orderbooks.append(prices['payload'])
-                    if len(orderbooks) == 800:
+                    if len(orderbooks) == 500:
                         print('In condition')
                         sys.stdout.flush()
                         # Instance for mid_price or wighted_mid_price
                         model_data = DataTracker(orderbooks=orderbooks)
                         
                         # Measure selection
-                        prices_for_analysis = model_data.wighted_mid_price()
+                        prices_for_analysis = model_data.mid_price()
 
                         # Price Forecast
                         forecast_results = PriceForecast(prices_for_analysis=prices_for_analysis)
@@ -43,11 +43,12 @@ class PricesStreaming:
                         
                         trading_action = DecisionMaker(next_expected_value=forecast_results['mean'],
                                                        prices_for_analysis=prices_for_analysis,
-                                                       book_name=self.book_name, actions_counter=actions_counter)
+                                                       book_name=self.book_name, actions_counter=actions_counter,
+                                                       price_percentage=0.00009)
                         # Trading desicion
                         decision = trading_action.decision_maker()
                         print(decision)
-                        
+                        sys.stdout.flush()
                         # Saving Results
                         saver = SavingResults()
                         saver = saver.save_transaction(id_transaction=str(datetime.now()), 

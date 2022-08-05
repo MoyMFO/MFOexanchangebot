@@ -46,11 +46,13 @@ class DecisionMaker:
 
     def __init__(self, next_expected_value: float,
                  prices_for_analysis: np.array,
-                 book_name: str, actions_counter: int) -> None:
+                 book_name: str, actions_counter: int,
+                 price_percentage: float) -> None:
         self.next_expected_value = next_expected_value
         self.prices_for_analysis = prices_for_analysis
         self.book_name = book_name
         self.actions_counter = actions_counter
+        self.price_percentage = price_percentage
 
     def decision_maker(self):
         
@@ -71,7 +73,9 @@ class DecisionMaker:
         crypto_balance = wallet_information.existing_crypto()
         print(f'this is the last price {last_price}')
         # Order placement Instance
-        order = OrdersPlacement(book=self.book_name, balance_mxn=mxn_balance, balance_crypto_currency=crypto_balance, last_price=last_price)
+        order = OrdersPlacement(book=self.book_name, balance_mxn=mxn_balance,
+                                 balance_crypto_currency=crypto_balance, last_price=last_price,
+                                 price_percentage=self.price_percentage)
 
         if (next_expected_value > last_price) and (last_decision != 'Buy') and (existing_order == False) and (mxn_balance != False):
             order.buy()

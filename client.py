@@ -23,7 +23,7 @@ class PricesStreaming:
                 prices = json.loads(await ws.recv())
                 try:
                     orderbooks.append(prices['payload'])
-                    if len(orderbooks) == 500:
+                    if len(orderbooks) == 200:
                         print('In condition')
                         sys.stdout.flush()
                         # Instance for mid_price or wighted_mid_price

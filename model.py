@@ -54,7 +54,7 @@ class DecisionMaker:
         self.actions_counter = actions_counter
         self.price_percentage = price_percentage
 
-    def decision_maker(self):
+    def decision_maker(self) -> dict:
         
         # Expected Value
         next_expected_value = np.round(self.next_expected_value, 2)
@@ -77,12 +77,16 @@ class DecisionMaker:
                                  balance_crypto_currency=crypto_balance, last_price=last_price,
                                  price_percentage=self.price_percentage)
 
-        if (next_expected_value > last_price) and (last_decision != 'Buy') and (existing_order == False) and (mxn_balance != False):
+        if ((next_expected_value > last_price) and (mxn_balance != False) 
+            and (last_price < wallet_information.last_trade_sell_price())):
+            order.cancel_order()
             order.buy()
             return {'order_type': 'Buy', 'mxn_balance': mxn_balance} 
         elif next_expected_value == last_price:
             return {'order_type': 'Hold', 'mxn_balance': mxn_balance}
-        elif (next_expected_value < last_price) and (last_decision != 'Sell') and (existing_order == False) and (crypto_balance != False):
+        elif ((next_expected_value < last_price) and  (crypto_balance != False)
+             and (last_price > wallet_information.last_trade_buy_price())):
+            order.cancel_order()
             order.sell()
             return {'order_type': 'Sell', 'mxn_balance': mxn_balance}
         else:

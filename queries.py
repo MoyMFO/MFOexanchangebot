@@ -4,13 +4,12 @@ import hashlib
 import requests
 import json
 import pandas as pd
-from sklearn.linear_model import lasso_path
 import numpy as np
 
 
 class BitsoApiConn:
 
-  def __init__(self, method_type, request_path, parameters = None):
+  def __init__(self, method_type, request_path, parameters = None) -> None:
     self.method_type = method_type
     self.request_path = request_path
     self.parameters = parameters
@@ -46,7 +45,7 @@ class WalletInformation:
       else:
         return False
 
-  def existing_order(self):
+  def existing_order(self) -> bool:
     bitsoconn = BitsoApiConn("GET", "/v3/open_orders/")
     response = requests.get("https://api.bitso.com" + bitsoconn.request_path, headers={"Authorization": bitsoconn.auth_header()})
     existing_order = json.loads(response.content)["payload"]
@@ -64,6 +63,22 @@ class WalletInformation:
       return balance_specific_currency
     else:
       return False
+  
+  def last_trade_sell_price(self) -> float:
+      parameters = {"book": self.currency, "limit": 30}
+      bitsoconn = BitsoApiConn("GET", "/v3/user_trades/", parameters=parameters)
+      response = requests.get("https://api.bitso.com" + bitsoconn.request_path, json = parameters, headers={"Authorization": bitsoconn.auth_header()})
+      sell_trades = pd.DataFrame(json.loads(response.content)["payload"])[["side", "price", "created_at"]]
+      sell_trades = float(sell_trades[sell_trades["side"] == "sell"]['price'].iloc[0])
+      return sell_trades
+  
+  def last_trade_buy_price(self) -> float:
+      parameters = {"book": self.currency, "limit": 30}
+      bitsoconn = BitsoApiConn("GET", "/v3/user_trades/", parameters=parameters)
+      response = requests.get("https://api.bitso.com" + bitsoconn.request_path, json = parameters, headers={"Authorization": bitsoconn.auth_header()})
+      buy_trades = pd.DataFrame(json.loads(response.content)["payload"])[["side", "price", "created_at"]]
+      buy_trades = float(buy_trades[buy_trades["side"] == "buy"]['price'].iloc[0])
+      return buy_trades
 
 class OrdersPlacement:
       
@@ -75,18 +90,18 @@ class OrdersPlacement:
       self.last_price = last_price
       self.price_percentage = price_percentage
 
-  def __quantity_mxn_balance_to_trade(self):
+  def __quantity_mxn_balance_to_trade(self) -> float:
     return np.round(((self.balance_mxn*.50)/self.last_price), 5)
 
-  def __quantity_crypto_balance_to_trade(self):
+  def __quantity_crypto_balance_to_trade(self) -> float:
     return np.round((self.balance_crypto_currency * .50), 5)
 
   @property
-  def limit_price_buy(self):
-    return np.round(self.last_price * (1 - self.price_percentage), 2)
+  def limit_price_buy(self) -> float:
+    return np.round(self.last_price * (1 - self.price_percentage - 0.00001), 2)
   
   @property
-  def limit_price_sell(self):
+  def limit_price_sell(self) -> float:
     return np.round(self.last_price * (1 + self.price_percentage), 2)
 
   def buy(self):
@@ -101,6 +116,10 @@ class OrdersPlacement:
       response =  requests.post("https://api.bitso.com" + bitsoconn.request_path, json = parameters, headers={"Authorization": bitsoconn.auth_header()})
       return print(response.content)
 
+  def cancel_order(self):
+      bitsoconn = BitsoApiConn("DELETE", "/v3/orders/all")
+      response =  requests.delete("https://api.bitso.com" + bitsoconn.request_path, headers={"Authorization": bitsoconn.auth_header()})
+      return print(response.content)
 #wallet_information = WalletInformation(currency='btc') 
 #existing_order = wallet_information.existing_order()
 #mxn_balance = wallet_information.available_money()
